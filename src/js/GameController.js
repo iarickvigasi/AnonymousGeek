@@ -58,7 +58,7 @@ export default class GameController {
         this.code(commands);
         break;
       default:
-        this.unknownCommand(command[0]);
+        this.unknownCommand(commands[0]);
     }
   }
 
