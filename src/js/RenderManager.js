@@ -27,6 +27,7 @@ export default class RenderManager {
   }
 
   saveInput(inputId, command) {
+    if(command.length > 1) command = command.join(' ');
     $(inputId).remove()
     let html = this.$console.html();
     html += command +'<br>';
@@ -42,6 +43,20 @@ export default class RenderManager {
   render(text) {
     let html = this.$console.html();
     html += text;
+    this.$console.html(html);
+  }
+
+  html(text) {
+    this.$console.html(text);
+  }
+
+  getHtml() {
+    return this.$console.html();
+  }
+
+  removeLastChar(length) {
+    let html = this.$console.html();
+    html = html.substring(0, html.length-length);
     this.$console.html(html);
   }
 
