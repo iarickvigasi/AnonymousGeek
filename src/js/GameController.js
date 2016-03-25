@@ -85,6 +85,7 @@ export default class GameController {
 
   handleCommand(command) {
     command = command.toLowerCase();
+    command = command.trim();
     command = command.split(' ');
     const inputId = this.textManager.getInputId();
     this.renderManager.saveInput(inputId, command);
@@ -154,8 +155,11 @@ export default class GameController {
     this.showInput();
   }
 
-  saveGameData(gameData) {
-    this.user.setGameData(gameData);
+  saveProject(project) {
+    let success = this.user.saveProject(project);
+    if(!success) {
+      this.renderManager.render('Oops, something wrong went while saving<br>')
+    }
   }
 
   tryEvent() {

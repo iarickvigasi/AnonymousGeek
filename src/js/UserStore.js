@@ -11,7 +11,8 @@ export default class UserStore {
 
     this.game = {
       progress: 0,
-      code: 'game'
+      file: 'game',
+      type: 'game'
     }
 
     this.jobs = []
@@ -23,9 +24,19 @@ export default class UserStore {
     return this.game;
   }
 
-  setGameData(data = {}) {
-    this.game = _.assign({}, this.game, data);
-    console.log("New game data:", this.game);
+  saveProject(project = {}) {
+    if(project.type === 'game') {
+      this.game = _.assign({}, this.game, project);
+      return true;
+    } else {
+      let job = this.user.jobs[project.index];
+      if(!job) return 'false';
+      else {
+        job = _.assign({}, job, project);
+        return true;
+      }
+    }
+    console.log("New game data:", this);
   }
 
   setJobs(data = []) {
@@ -40,6 +51,7 @@ export default class UserStore {
     //@TODO: Random texts based on skills
     let jobs = this.user.jobs;
     let txt = "game : Your personal shit... oh sorry game<br>";
+    console.log("Getting projects:", jobs);
     jobs.forEach( (job, index) => {
       txt += `job#${index} : ${job.title} payment: $${job.price}<br>`
     })
@@ -64,7 +76,7 @@ export default class UserStore {
 
     let job = this.jobs[index];
     this.jobs.splice(index, 1);
-    this.user.jobs.push(job);
+    if(job) this.user.jobs.push(job);
 
     console.log('job ', job);
     return job;

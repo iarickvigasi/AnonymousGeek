@@ -10,7 +10,7 @@ export default class Typer {
 
     this.render = renderManager;
 
-    this.index = 0;
+    this.project = null;
     this.speed = 2;
     this.isTyping = false;
 
@@ -23,7 +23,7 @@ export default class Typer {
   }
 
   prepareCode(code) {
-    var text=$("<div/>").text(code.substring(0, this.index)).html();
+    var text=$("<div/>").text(code.substring(0, this.project.progress)).html();
 
     var rtn= new RegExp("\n", "g");
     var rts= new RegExp("\\s", "g");
@@ -60,13 +60,10 @@ export default class Typer {
     const code = this.getCode()
     this.render.html(code);
     window.scrollBy(0, window.outerHeight);
-    this.index += this.getSpeed(e);
+    this.project.progress += this.getSpeed(e);
 
     this.saveKey(e);
-    let gameData = {
-      progress: this.index,
-    }
-    gameController.saveGameData(gameData)
+    gameController.saveProject(this.project)
   }
 
   updateCursor() {
@@ -81,7 +78,6 @@ export default class Typer {
 
   handleShortCut(e) {
     if(e.ctrlKey && e.keyCode == 67) {
-      console.log("YEAP");
       this.stopTyping();
     }
     else if(e.keyCode == KEY_CODES.BACKSPACE) {
@@ -91,10 +87,10 @@ export default class Typer {
   }
 
   startTyping(code, gameData) {
+    console.log('Going to type:', gameData);
     this.isTyping = true;
-
+    this.project = gameData;
     this.codeSnippet = code;
-    this.index = gameData.progress;
 
     let typeCodeHandler = this.typeCode.bind(this)
     let shortCutsHandler = this.handleShortCut.bind(this);
@@ -116,10 +112,8 @@ export default class Typer {
     $(document).off('keypress', typeCodeHandler)
     $(document).off('keydown', shortCutsHandler)
     clearInterval(cursorInterval);
-    let gameData = {
-      progress: this.index,
-    }
+
     gameController.clear(showInput);
-    gameController.saveGameData(gameData)
+    gameController.saveProject(this.project)
   }
 }
