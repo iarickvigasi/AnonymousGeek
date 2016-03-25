@@ -54,16 +54,20 @@ export default class Typer {
     this.lastTypedKey = e.keyCode;
   }
 
-  typeCode(e) {
+  typeCode(e){
     let canContinue = gameController.tryEvent();
     if(!this.isTyping || !canContinue) return false;
     const code = this.getCode()
     this.render.html(code);
     window.scrollBy(0, window.outerHeight);
     this.project.progress += this.getSpeed(e);
-
+    if(this.project.progress > this.project.length) this.project.progress = this.project.length;
     this.saveKey(e);
     gameController.saveProject(this.project)
+    if(this.project.progress >= this.project.length) {
+      this.breakTyping();
+      gameController.projectComplete(this.project);
+    }
   }
 
   updateCursor() {

@@ -11,7 +11,7 @@ export default class GameController {
     this.textManager    = new TextManager();
     this.renderManager  = new RenderManager();
     this.typer          = new Typer(this.renderManager);
-    this.user           = new UserStore();
+    this.user           = new UserStore(this.textManager);
 
     this.generateJobs();
 
@@ -46,6 +46,12 @@ export default class GameController {
         break;
       case 'projects':
         this.showProjects();
+        break;
+      case 'skills':
+        this.showSkills();
+        break;
+      case 'getcash':
+        this.showCash();
         break;
       case 'jobs':
         this.showJobs();
@@ -127,8 +133,21 @@ export default class GameController {
   }
 
   showProjects() {
-    const projects = this.user.getProjects();
+    const projects = this.user.getProjectsTxt();
     this.renderManager.render(projects);
+    this.showInput();
+  }
+
+  showSkills() {
+    const skills = this.user.getSkillsTxt();
+    this.renderManager.render(skills);
+    this.showInput();
+  }
+
+  showCash() {
+    const cash = this.user.getCash();
+    let txt = 'User has : $' + cash + "<br>";
+    this.renderManager.render(txt);
     this.showInput();
   }
 
@@ -193,8 +212,14 @@ export default class GameController {
     this.showInput();
   }
 
+  projectComplete(project) {
+    this.user.completeProject(project);
+    this.renderManager.render('YAY! You\'ve finished project #' + project.index + " " + project.title+'<br>');
+    this.showInput();
+  }
+
   generateJobs() {
-    let jobGenerator = new JobGenerator();
+    let jobGenerator = new JobGenerator(this.textManager);
     let jobs = []
 
     for(let i = 0;i < 10; i++) {
@@ -214,7 +239,7 @@ export default class GameController {
       let job = jobs[i];
       txt += 'Position:'+ job.title + '<br>';
       txt += 'Payment: $'+ job.price + '<br>';
-      txt += 'Skill: '+ job.skill + '<br>';
+      txt += 'Skill: '+ job.field + '<br>';
       txt += 'ID: '+ job.index + '<br>';
       txt += '----------------------------------------------------------------------</br>';
     }
@@ -223,8 +248,8 @@ export default class GameController {
 }
 
 class JobGenerator {
-  constructor() {
-
+  constructor(textManager) {
+    this.textManager = textManager;
   }
 
   getJob() {
@@ -234,24 +259,28 @@ class JobGenerator {
     switch (random) {
       case 1:
         job.title = 'Angular Developer for some Indian Startup';
-        job.skill = 'WebDevelopment';
+        job.field = 'WebDevelopment';
+        job.skill = 'web';
         job.file  = 'js';
         break;
       case 2:
         job.title = 'C++ Developer for CryTek';
-        job.skill = 'Game Development';
+        job.field = 'Game Development';
+        job.skill = 'game';
         job.file  = 'cpp';
         break;
       default:
-        job.title = 'Java Developer for Oracle';
-        job.skill = 'SoftwereDevelopment';
+        job.title = 'Java Developer for Google';
+        job.field = 'Mobile Softwere Development ';
+        job.skill = 'mobile';
         job.file  = 'java';
         break;
     }
 
     job.price = utils.random(1, 1000);
     job.progress = 0;
-
+    let length = this.textManager.getCodeLentgh(job.file);
+    job.length = length;
     return job
   }
 }
