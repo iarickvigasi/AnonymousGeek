@@ -1,3 +1,5 @@
 import GameController from './GameController';
 
-var game = new GameController();
+var gameController = new GameController();
+
+export default gameController;

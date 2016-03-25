@@ -20,6 +20,7 @@ gulp.task('sass:watch', function () {
 gulp.task('build', function () {
     return browserify({entries: './src/js/app.js'})
         .transform(babel)
+        .on('error', onError)
         .bundle()
         .pipe(source('app.js'))
         .pipe(gulp.dest('./public/build/js'));
@@ -30,3 +31,8 @@ gulp.task('watch', ['build', 'sass'], function () {
 });
 
 gulp.task('default', ['watch']);
+
+function onError(err) {
+  console.log(err);
+  this.emit('end');
+}

@@ -1,8 +1,6 @@
 import jquery from 'jquery';
+import CONSTS from './consts'
 var $ = jquery;
-const CHAR_CODES = {
-  ENTER: 13,
-}
 export default class RenderManager {
   constructor() {
     console.log('RenderManager initing...');
@@ -10,6 +8,9 @@ export default class RenderManager {
     let consoleEl = $("#console");
     this.$console = consoleEl;
 
+    $(document).on('click', e => {
+      this.focus('#input');
+    })
     console.log('RenderManager inited');
   }
 
@@ -19,7 +20,7 @@ export default class RenderManager {
 
   listenEnter(id,cb) {
     $(id).on('keypress', (e) => {
-      if(e.charCode === CHAR_CODES.ENTER) {
+      if(e.charCode === CONSTS.KEY_CODES.ENTER) {
         const userText = $(id).val();
         cb(userText);
       }

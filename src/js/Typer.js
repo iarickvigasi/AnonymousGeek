@@ -1,16 +1,23 @@
 import jquery from 'jquery';
+import CONST from './consts'
+import gameController from './app'
 var $ = jquery;
+const { KEY_CODES } = CONST
 
 export default class Typer {
-  constructor(renderManager, gameController){
+  constructor(renderManager){
     console.log('Typer initing...');
 
     this.render = renderManager;
-    this.gameController = gameController;
+
     this.index = 0;
+    this.speed = 2;
+    this.isTyping = false;
+
     this.typeCodeHandler = null;
     this.shortCutsHandler = null;
     this.cursorInterval = null;
+    this.lastTypedKey = null;
 
     console.log('Typer inited');
   }
@@ -25,11 +32,41 @@ export default class Typer {
     return text.replace(rtn,"<br/>").replace(rtt,"&nbsp;&nbsp;&nbsp;&nbsp;").replace(rts,"&nbsp;");
   }
 
-  typeCode(code, e) {
-    code = this.prepareCode(code);
+  breakTyping() {
+    this.stopTyping(false);
+  }
+
+  deleteLastCode(e) {
+    this.index -= 2*this.speed;
+    this.typeCode({});
+  }
+
+  getSpeed(e) {
+    if(e.keyCode === this.lastTypedKey) return 0;
+    else return this.speed;
+  }
+
+  getCode() {
+    return this.prepareCode(this.codeSnippet)
+  }
+
+  saveKey(e) {
+    this.lastTypedKey = e.keyCode;
+  }
+
+  typeCode(e) {
+    let canContinue = gameController.tryEvent();
+    if(!this.isTyping || !canContinue) return false;
+    const code = this.getCode()
     this.render.html(code);
-    window.scrollBy(0,50);
-    this.index += 2;
+    window.scrollBy(0, window.outerHeight);
+    this.index += this.getSpeed(e);
+
+    this.saveKey(e);
+    let gameData = {
+      progress: this.index,
+    }
+    gameController.saveGameData(gameData)
   }
 
   updateCursor() {
@@ -47,26 +84,42 @@ export default class Typer {
       console.log("YEAP");
       this.stopTyping();
     }
+    else if(e.keyCode == KEY_CODES.BACKSPACE) {
+      this.deleteLastCode(e);
+      e.preventDefault();
+    }
   }
 
-  startTyping(code, status = 0) {
-    let typeCodeHandler = this.typeCode.bind(this, code)
+  startTyping(code, gameData) {
+    this.isTyping = true;
+
+    this.codeSnippet = code;
+    this.index = gameData.progress;
+
+    let typeCodeHandler = this.typeCode.bind(this)
     let shortCutsHandler = this.handleShortCut.bind(this);
     let cursorInterval = setInterval(this.updateCursor.bind(this), 500);
     this.typeCodeHandler = typeCodeHandler;
     this.shortCutsHandler = shortCutsHandler;
     this.cursorInterval = cursorInterval;
     $(document).on('keypress', typeCodeHandler);
+    // $(document).unbind('keydown').bind('keydown', preventBackSpace);
     $(document).on('keydown', shortCutsHandler)
   }
 
-  stopTyping() {
+  stopTyping(showInput = true) {
+    this.isTyping = false;
+
     let typeCodeHandler = this.typeCodeHandler;
     let shortCutsHandler = this.shortCutsHandler;
     let cursorInterval = this.cursorInterval;
     $(document).off('keypress', typeCodeHandler)
     $(document).off('keydown', shortCutsHandler)
     clearInterval(cursorInterval);
-    this.gameController.clear();
+    let gameData = {
+      progress: this.index,
+    }
+    gameController.clear(showInput);
+    gameController.saveGameData(gameData)
   }
 }

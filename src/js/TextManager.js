@@ -3,6 +3,7 @@ export default class TextManager {
     console.log('TextManager initing...');
     this.inputId = 'input';
     this.input = `anon@Geek:~$:<input id='${this.inputId}'>`;
+
     console.log('TextManager inited');
   }
 
@@ -80,535 +81,402 @@ export default class TextManager {
 }
 
 const gameCode = `
-struct group_info init_groups = { .usage = ATOMIC_INIT(2) };
-struct group_info *groups_alloc(int gidsetsize){
+import TextManager from './TextManager';
+import RenderManager from './RenderManager';
+import UserStore from './UserStore';
+import Typer from './Typer';
 
-	struct group_info *group_info;
+export default class GameController {
+  constructor() {
+    console.log('GameController initing...');
 
-	int nblocks;
+    this.textManager    = new TextManager();
+    this.renderManager  = new RenderManager();
+    this.typer          = new Typer(this.renderManager);
+    this.user           = new UserStore();
 
-	int i;
+    console.log('GameController inited.');
 
+    this.showMenu();
+  }
 
+  showMenu() {
+    console.log('Showing menu');
+    const menuText = this.textManager.getMenuText();
+    this.renderManager.render(menuText);
+    this.showInput();
+  }
 
-	nblocks = (gidsetsize + NGROUPS_PER_BLOCK - 1) / NGROUPS_PER_BLOCK;
+  showInput() {
+    const inputMd  = this.textManager.getInput();
+    const inputId = this.textManager.getInputId();
+    this.renderManager.renderInput(inputMd);
+    this.renderManager.focus(inputId);
+    this.renderManager.listenEnter(inputId, (text)=>{
+      console.log('User has typed:', text);
+      this.handleCommand(text);
+    });
+  }
 
-	/* Make sure we always allocate at least one indirect block pointer */
+  handleSimpleCommand(command) {
+    switch (command) {
+      case 'help':
+        this.showHelp();
+        break;
+      case 'projects':
+        this.showProjects();
+        break;
+      case 'clear':
+        this.clear();
+        break;
+      case 'code':
+        this.badCommand(command)
+        break;
+      default:
+      this.unknownCommand(command);
+    }
+  }
 
-	nblocks = nblocks ? : 1;
+  handleDoubleCommand(commands) {
+    switch (commands[0]) {
+      case 'code':
+        this.code(commands);
+        break;
+      default:
+        this.unknownCommand(commands[0]);
+    }
+  }
 
-	group_info = kmalloc(sizeof(*group_info) + nblocks*sizeof(gid_t *), GFP_USER);
+  handleComplexCommand(commands) {
+    //@TODO: Make it normal)))
+    this.renderManager.render("WTF?<br>");
+    this.showInput();
+  }
 
-	if (!group_info)
+  handleCommand(command) {
+    command = command.toLowerCase();
+    command = command.split(' ');
+    const inputId = this.textManager.getInputId();
+    this.renderManager.saveInput(inputId, command);
+    if(command.length == 1) this.handleSimpleCommand(command[0]);
+    else if(command.length == 2) this.handleDoubleCommand(command);
+    else if(command.length > 2) this.handleComplexCommand(command);
+  }
 
-		return NULL;
+  code(commands) {
+    const projectName = commands[1];
+    //@TODO: Check for project
+    if(projectName !== 'game'){ this.unknownArgument(commands); }
+    else {
+      this.codeGame();
+    }
+  }
 
-	group_info->ngroups = gidsetsize;
+  codeGame(){
+    this.renderManager.clear();
+    const gameData = this.user.getGameData();
+    const gameCode = this.textManager.getGameCode();
+    this.typer.startTyping(gameCode, gameData);
+  }
 
-	group_info->nblocks = nblocks;
+  showProjects() {
+    const projects = this.textManager.getProjects();
+    this.renderManager.render(projects);
+    this.showInput();
+  }
 
-	atomic_set(&group_info->usage, 1);
+  clear() {
+    this.renderManager.clear();
+    this.showInput();
+  }
 
+  showHelp() {
+    const helpText = this.textManager.getHelpText();
+    this.renderManager.render(helpText);
+    this.showInput();
+  }
 
+  saveGameData(gameData) {
+    this.user.setGameData(gameData);
+  }
 
-	if (gidsetsize <= NGROUPS_SMALL)
+  unknownCommand(command) {
+    const unknownCommand = this.textManager.getUnknownCommandText(command);
+    this.renderManager.render(unknownCommand);
+    this.showInput();
+  }
 
-		group_info->blocks[0] = group_info->small_block;
+  unknownArgument(commands) {
+    const unknownArgument = this.textManager.getUnknownArgument(commands);
+    this.renderManager.render(unknownArgument);
+    this.showInput();
+  }
 
-	else {
-
-		for (i = 0; i < nblocks; i++) {
-
-			gid_t *b;
-
-			b = (void *)__get_free_page(GFP_USER);
-
-			if (!b)
-
-				goto out_undo_partial_alloc;
-
-			group_info->blocks[i] = b;
-
-		}
-
-	}
-
-	return group_info;
-
-
-
-out_undo_partial_alloc:
-
-	while (--i >= 0) {
-
-		free_page((unsigned long)group_info->blocks[i]);
-
-	}
-
-	kfree(group_info);
-
-	return NULL;
-
+  badCommand(command){
+    const badCommand = this.textManager.getBadCommand(command);
+    this.renderManager.render(badCommand);
+    this.showInput();
+  }
 }
 
 
+import jquery from 'jquery';
+import CONSTS from './consts'
+var $ = jquery;
+export default class RenderManager {
+  constructor() {
+    console.log('RenderManager initing...');
 
-EXPORT_SYMBOL(groups_alloc);
+    let consoleEl = $("#console");
+    this.$console = consoleEl;
 
+    $(document).on('click', e => {
+      this.focus('#input');
+    })
+    console.log('RenderManager inited');
+  }
 
+  focus(id) {
+    $(id).focus();
+  }
 
-void groups_free(struct group_info *group_info)
+  listenEnter(id,cb) {
+    $(id).on('keypress', (e) => {
+      if(e.charCode === CONSTS.KEY_CODES.ENTER) {
+        const userText = $(id).val();
+        cb(userText);
+      }
+    })
+  }
 
-{
+  saveInput(inputId, command) {
+    if(command.length > 1) command = command.join(' ');
+    $(inputId).remove()
+    let html = this.$console.html();
+    html += command +'<br>';
+    this.$console.html(html);
+  }
 
-	if (group_info->blocks[0] != group_info->small_block) {
+  renderInput(inputMd) {
+    let html = this.$console.html();
+    html += inputMd;
+    this.$console.html(html);
+  }
 
-		int i;
+  render(text) {
+    let html = this.$console.html();
+    html += text;
+    this.$console.html(html);
+  }
 
-		for (i = 0; i < group_info->nblocks; i++)
+  html(text) {
+    this.$console.html(text);
+  }
 
-			free_page((unsigned long)group_info->blocks[i]);
+  getHtml() {
+    return this.$console.html();
+  }
 
-	}
+  removeLastChar(length) {
+    let html = this.$console.html();
+    html = html.substring(0, html.length-length);
+    this.$console.html(html);
+  }
 
-	kfree(group_info);
+  clear() {
+    this.$console.html("");
+  }
+}
+
+export default class TextManager {
+  constructor() {
+    console.log('TextManager initing...');
+    this.inputId = 'input';
+    console.log('TextManager inited');
+  }
+
+  getMenuText() {
+    const menuText =
+    'Hello Neo... <br>
+     Are you smart enough? <br>
+    ''
+    return menuText;
+  }
+
+  getProjects() {
+    //@TODO: Form string from projects that inside user store
+    const projects =
+    '
+    Projects: total: 1 <br>
+    1) game : Your personal game, maybe another shit but who knows...</br>
+    '
+    return projects
+  }
+
+  getHelpText() {
+    const helpText =
+    '
+    GNU bash, version 4.3.42(1)-release (x86_64-pc-linux-gnu) <br>
+    These shell commands are defined internally.<br>
+    Type 'help' to see this list.<br>
+    help   - see help<br>
+    clear  - clear console<br>
+    projects - show all your project names<br>
+    code <argument> - go to code<br>
+    '
+    return helpText;
+  }
+
+  getGameCode() {
+    return gameCode;
+  }
+
+  getUnknownCommandText(command) {
+    const unknownCommand ='
+    No command 'command' found, but you can type 'help'<br>
+    command: command not found<br>
+    '
+    return unknownCommand;
+  }
+
+  getUnknownArgument(commands) {
+    const text =
+    '
+    commands[0]}: fatal error: unknown argument<br>
+    usage: commands[0]} &ltargument that we know&gt<br>
+    '
+    return text;
+  }
+
+  getBadCommand(command) {
+    let text =
+    '
+    Please use commands correctly! <br>
+    command 'command}' is using with arguments!<br>
+    '
+    return text;
+  }
+
+  getInput() {
+    return this.input;
+  }
+
+  getInputId() {
+    return "#"+this.inputId;
+  }
 
 }
 
+const gameCode = 'Recursion... Oh no...'
 
+import jquery from 'jquery';
+import CONST from './consts'
+import gameController from './app'
+var $ = jquery;
+const { KEY_CODES } = CONST
 
-EXPORT_SYMBOL(groups_free);
+export default class Typer {
+  constructor(renderManager){
+    console.log('Typer initing...');
 
+    this.render = renderManager;
 
+    this.index = 0;
+    this.speed = 2;
 
-/* export the group_info to a user-space array */
+    this.typeCodeHandler = null;
+    this.shortCutsHandler = null;
+    this.cursorInterval = null;
+    this.lastTypedKey = null;
 
-static int groups_to_user(gid_t __user *grouplist,
+    console.log('Typer inited');
+  }
 
-			  const struct group_info *group_info)
+  prepareCode(code) {
+    var text=$("<div/>").text(code.substring(0, this.index)).html();
 
-{
+    var rtn= new RegExp("\n", "g");
+    var rts= new RegExp("\\s", "g");
+    var rtt= new RegExp("\\t", "g");
 
-	int i;
+    return text.replace(rtn,"<br/>").replace(rtt,"&nbsp;&nbsp;&nbsp;&nbsp;").replace(rts,"&nbsp;");
+  }
 
-	unsigned int count = group_info->ngroups;
+  deleteLastCode(e) {
+    this.index -= 2*this.speed;
+    this.typeCode({});
+  }
 
+  getSpeed(e) {
+    if(e.keyCode === this.lastTypedKey) return 0;
+    else return this.speed;
+  }
 
+  getCode() {
+    return this.prepareCode(this.codeSnippet)
+  }
 
-	for (i = 0; i < group_info->nblocks; i++) {
+  saveKey(e) {
+    this.lastTypedKey = e.keyCode;
+  }
 
-		unsigned int cp_count = min(NGROUPS_PER_BLOCK, count);
+  typeCode(e) {
+    const code = this.getCode()
+    this.render.html(code);
+    window.scrollBy(0,50);
+    this.index += this.getSpeed(e);
+    this.saveKey(e);
+  }
 
-		unsigned int len = cp_count * sizeof(*grouplist);
+  updateCursor() {
+    let content = this.render.getHtml();
+    if(content.substring(content.length-1, content.length) === "|") {
+      this.render.removeLastChar(1);
+    }
+    else {
+      this.render.render('|');
+    }
+  }
 
+  handleShortCut(e) {
+    if(e.ctrlKey && e.keyCode == 67) {
+      console.log("YEAP");
+      this.stopTyping();
+    }
+    else if(e.keyCode == KEY_CODES.BACKSPACE) {
+      this.deleteLastCode(e);
+      e.preventDefault();
+    }
+  }
 
+  startTyping(code, gameData) {
+    this.codeSnippet = code;
+    this.index = gameData.progress;
 
-		if (copy_to_user(grouplist, group_info->blocks[i], len))
+    let typeCodeHandler = this.typeCode.bind(this)
+    let shortCutsHandler = this.handleShortCut.bind(this);
+    let cursorInterval = setInterval(this.updateCursor.bind(this), 500);
+    this.typeCodeHandler = typeCodeHandler;
+    this.shortCutsHandler = shortCutsHandler;
+    this.cursorInterval = cursorInterval;
+    $(document).on('keypress', typeCodeHandler);
+    // $(document).unbind('keydown').bind('keydown', preventBackSpace);
+    $(document).on('keydown', shortCutsHandler)
+  }
 
-			return -EFAULT;
-
-
-
-		grouplist += NGROUPS_PER_BLOCK;
-
-		count -= cp_count;
-
-	}
-
-	return 0;
-
+  stopTyping() {
+    let typeCodeHandler = this.typeCodeHandler;
+    let shortCutsHandler = this.shortCutsHandler;
+    let cursorInterval = this.cursorInterval;
+    $(document).off('keypress', typeCodeHandler)
+    $(document).off('keydown', shortCutsHandler)
+    clearInterval(cursorInterval);
+    let gameData = {
+      progress: this.index,
+    }
+    gameController.clear();
+    gameController.saveGameData(gameData)
+  }
 }
 
-
-
-/* fill a group_info from a user-space array - it must be allocated already */
-
-static int groups_from_user(struct group_info *group_info,
-
-    gid_t __user *grouplist)
-
-{
-
-	int i;
-
-	unsigned int count = group_info->ngroups;
-
-
-
-	for (i = 0; i < group_info->nblocks; i++) {
-
-		unsigned int cp_count = min(NGROUPS_PER_BLOCK, count);
-
-		unsigned int len = cp_count * sizeof(*grouplist);
-
-
-
-		if (copy_from_user(group_info->blocks[i], grouplist, len))
-
-			return -EFAULT;
-
-
-
-		grouplist += NGROUPS_PER_BLOCK;
-
-		count -= cp_count;
-
-	}
-
-	return 0;
-
-}
-
-
-
-/* a simple Shell sort */
-
-static void groups_sort(struct group_info *group_info)
-
-{
-
-	int base, max, stride;
-
-	int gidsetsize = group_info->ngroups;
-
-
-
-	for (stride = 1; stride < gidsetsize; stride = 3 * stride + 1)
-
-		; /* nothing */
-
-	stride /= 3;
-
-
-
-	while (stride) {
-
-		max = gidsetsize - stride;
-
-		for (base = 0; base < max; base++) {
-
-			int left = base;
-
-			int right = left + stride;
-
-			gid_t tmp = GROUP_AT(group_info, right);
-
-
-
-			while (left >= 0 && GROUP_AT(group_info, left) > tmp) {
-
-				GROUP_AT(group_info, right) =
-
-				    GROUP_AT(group_info, left);
-
-				right = left;
-
-				left -= stride;
-
-			}
-
-			GROUP_AT(group_info, right) = tmp;
-
-		}
-
-		stride /= 3;
-
-	}
-
-}
-
-
-
-/* a simple bsearch */
-
-int groups_search(const struct group_info *group_info, gid_t grp)
-
-{
-
-	unsigned int left, right;
-
-
-
-	if (!group_info)
-
-		return 0;
-
-
-
-	left = 0;
-
-	right = group_info->ngroups;
-
-	while (left < right) {
-
-		unsigned int mid = (left+right)/2;
-
-		if (grp > GROUP_AT(group_info, mid))
-
-			left = mid + 1;
-
-		else if (grp < GROUP_AT(group_info, mid))
-
-			right = mid;
-
-		else
-
-			return 1;
-
-	}
-
-	return 0;
-
-}
-
-
-
-/**
-
- * set_groups - Change a group subscription in a set of credentials
-
- * @new: The newly prepared set of credentials to alter
-
- * @group_info: The group list to install
-
- *
-
- * Validate a group subscription and, if valid, insert it into a set
-
- * of credentials.
-
- */
-
-int set_groups(struct cred *new, struct group_info *group_info)
-
-{
-
-	put_group_info(new->group_info);
-
-	groups_sort(group_info);
-
-	get_group_info(group_info);
-
-	new->group_info = group_info;
-
-	return 0;
-
-}
-
-
-
-EXPORT_SYMBOL(set_groups);
-
-
-
-/**
-
- * set_current_groups - Change current's group subscription
-
- * @group_info: The group list to impose
-
- *
-
- * Validate a group subscription and, if valid, impose it upon current's task
-
- * security record.
-
- */
-
-int set_current_groups(struct group_info *group_info)
-
-{
-
-	struct cred *new;
-
-	int ret;
-
-
-
-	new = prepare_creds();
-
-	if (!new)
-
-		return -ENOMEM;
-
-
-
-	ret = set_groups(new, group_info);
-
-	if (ret < 0) {
-
-		abort_creds(new);
-
-		return ret;
-
-	}
-
-
-
-	return commit_creds(new);
-
-}
-
-
-
-EXPORT_SYMBOL(set_current_groups);
-
-
-
-SYSCALL_DEFINE2(getgroups, int, gidsetsize, gid_t __user *, grouplist)
-
-{
-
-	const struct cred *cred = current_cred();
-
-	int i;
-
-
-
-	if (gidsetsize < 0)
-
-		return -EINVAL;
-
-
-
-	/* no need to grab task_lock here; it cannot change */
-
-	i = cred->group_info->ngroups;
-
-	if (gidsetsize) {
-
-		if (i > gidsetsize) {
-
-			i = -EINVAL;
-
-			goto out;
-
-		}
-
-		if (groups_to_user(grouplist, cred->group_info)) {
-
-			i = -EFAULT;
-
-			goto out;
-
-		}
-
-	}
-
-out:
-
-	return i;
-
-}
-
-
-
-/*
-
- *	SMP: Our groups are copy-on-write. We can set them safely
-
- *	without another task interfering.
-
- */
-
-
-
-SYSCALL_DEFINE2(setgroups, int, gidsetsize, gid_t __user *, grouplist)
-
-{
-
-	struct group_info *group_info;
-
-	int retval;
-
-
-
-	if (!nsown_capable(CAP_SETGID))
-
-		return -EPERM;
-
-	if ((unsigned)gidsetsize > NGROUPS_MAX)
-
-		return -EINVAL;
-
-
-
-	group_info = groups_alloc(gidsetsize);
-
-	if (!group_info)
-
-		return -ENOMEM;
-
-	retval = groups_from_user(group_info, grouplist);
-
-	if (retval) {
-
-		put_group_info(group_info);
-
-		return retval;
-
-	}
-
-
-
-	retval = set_current_groups(group_info);
-
-	put_group_info(group_info);
-
-
-
-	return retval;
-
-}
-
-
-
-/*
-
- * Check whether we're fsgid/egid or in the supplemental group..
-
- */
-
-int in_group_p(gid_t grp)
-
-{
-
-	const struct cred *cred = current_cred();
-
-	int retval = 1;
-
-
-
-	if (grp != cred->fsgid)
-
-		retval = groups_search(cred->group_info, grp);
-
-	return retval;
-
-}
-
-
-
-EXPORT_SYMBOL(in_group_p);
-
-
-
-int in_egroup_p(gid_t grp)
-
-{
-
-	const struct cred *cred = current_cred();
-
-	int retval = 1;
-
-
-
-	if (grp != cred->egid)
-
-		retval = groups_search(cred->group_info, grp);
-
-	return retval;
-
-}
-"
 `

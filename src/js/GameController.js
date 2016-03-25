@@ -1,5 +1,6 @@
 import TextManager from './TextManager';
 import RenderManager from './RenderManager';
+import UserStore from './UserStore';
 import Typer from './Typer';
 
 export default class GameController {
@@ -8,7 +9,8 @@ export default class GameController {
 
     this.textManager    = new TextManager();
     this.renderManager  = new RenderManager();
-    this.typer          = new Typer(this.renderManager, this);
+    this.typer          = new Typer(this.renderManager);
+    this.user           = new UserStore();
 
     console.log('GameController inited.');
 
@@ -22,11 +24,12 @@ export default class GameController {
     this.showInput();
   }
 
-  showInput() {
+  showInput(e) {
     const inputMd  = this.textManager.getInput();
     const inputId = this.textManager.getInputId();
     this.renderManager.renderInput(inputMd);
     this.renderManager.focus(inputId);
+
     this.renderManager.listenEnter(inputId, (text)=>{
       console.log('User has typed:', text);
       this.handleCommand(text);
@@ -62,6 +65,12 @@ export default class GameController {
     }
   }
 
+  handleComplexCommand(commands) {
+    //@TODO: Make it normal)))
+    this.renderManager.render("WTF?<br>");
+    this.showInput();
+  }
+
   handleCommand(command) {
     command = command.toLowerCase();
     command = command.split(' ');
@@ -69,6 +78,7 @@ export default class GameController {
     this.renderManager.saveInput(inputId, command);
     if(command.length == 1) this.handleSimpleCommand(command[0]);
     else if(command.length == 2) this.handleDoubleCommand(command);
+    else if(command.length > 2) this.handleComplexCommand(command);
   }
 
   code(commands) {
@@ -82,9 +92,9 @@ export default class GameController {
 
   codeGame(){
     this.renderManager.clear();
-    //@TODO: Load current progress and show code from that position
+    const gameData = this.user.getGameData();
     const gameCode = this.textManager.getGameCode();
-    this.typer.startTyping(gameCode);
+    this.typer.startTyping(gameCode, gameData);
   }
 
   showProjects() {
@@ -93,15 +103,31 @@ export default class GameController {
     this.showInput();
   }
 
-  clear() {
+  clear(showInput = true) {
     this.renderManager.clear();
-    this.showInput();
+    showInput && this.showInput();
   }
 
   showHelp() {
     const helpText = this.textManager.getHelpText();
     this.renderManager.render(helpText);
     this.showInput();
+  }
+
+  saveGameData(gameData) {
+    this.user.setGameData(gameData);
+  }
+
+  tryEvent() {
+    let gameData = this.user.getGameData();
+    if(gameData.progress >= 100) {
+      this.typer.breakTyping();
+      this.renderManager.render('You don\'n know what to write next! Such a low skill..<br>')
+      this.showInput();
+      return false;
+    }
+
+    return true;
   }
 
   unknownCommand(command) {
