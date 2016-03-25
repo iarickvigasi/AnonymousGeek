@@ -2,6 +2,7 @@ import TextManager from './TextManager';
 import RenderManager from './RenderManager';
 import UserStore from './UserStore';
 import Typer from './Typer';
+import utils from './utils';
 
 export default class GameController {
   constructor() {
@@ -11,6 +12,8 @@ export default class GameController {
     this.renderManager  = new RenderManager();
     this.typer          = new Typer(this.renderManager);
     this.user           = new UserStore();
+
+    this.generateJobs();
 
     console.log('GameController inited.');
 
@@ -44,10 +47,16 @@ export default class GameController {
       case 'projects':
         this.showProjects();
         break;
+      case 'jobs':
+        this.showJobs();
+        break;
       case 'clear':
         this.clear();
         break;
       case 'code':
+        this.badCommand(command)
+        break;
+      case 'jobapply':
         this.badCommand(command)
         break;
       default:
@@ -59,6 +68,9 @@ export default class GameController {
     switch (commands[0]) {
       case 'code':
         this.code(commands);
+        break;
+      case 'jobapply':
+        this.jobapply(commands);
         break;
       default:
         this.unknownCommand(commands[0]);
@@ -83,23 +95,51 @@ export default class GameController {
 
   code(commands) {
     const projectName = commands[1];
-    //@TODO: Check for project
-    if(projectName !== 'game'){ this.unknownArgument(commands); }
+    let project = this.user.getProject(projectName);
+    if(!project){ this.unknownArgument(commands); }
     else {
-      this.codeGame();
+      console.log("Start coding:", project);
+      this.codeGame(project);
     }
   }
 
-  codeGame(){
+  jobapply(commands) {
+    const jobIndex = commands[1];
+    let job = this.user.setUserJob(jobIndex);
+    if(!job){
+      this.unknownArgument(commands);
+    }
+    else {
+      this.showJobApplySuccess(job);
+    }
+  }
+
+  codeGame(project){
     this.renderManager.clear();
-    const gameData = this.user.getGameData();
-    const gameCode = this.textManager.getGameCode();
-    this.typer.startTyping(gameCode, gameData);
+    const gameCode = this.textManager.getGameCode(project);
+    if(!gameCode) {
+      this.renderManager.render('Hmm....I don\'n know such language<br>')
+      this.showInput();
+      return;
+    }
+    this.typer.startTyping(gameCode, project);
   }
 
   showProjects() {
-    const projects = this.textManager.getProjects();
+    const projects = this.user.getProjects();
     this.renderManager.render(projects);
+    this.showInput();
+  }
+
+  showJobs() {
+    const jobs = this.getJobs();
+    this.renderManager.render(jobs);
+    this.showInput();
+  }
+
+  showJobApplySuccess(job) {
+    let txt = `You\'v applied successfuly to \'${job.title}!\' Go start coding!<br>`;
+    this.renderManager.render(txt);
     this.showInput();
   }
 
@@ -120,7 +160,8 @@ export default class GameController {
 
   tryEvent() {
     let gameData = this.user.getGameData();
-    if(gameData.progress >= 100) {
+    //@TODO: Add checking by skill
+    if(gameData.progress >= 10000) {
       this.typer.breakTyping();
       this.renderManager.render('You don\'n know what to write next! Such a low skill..<br>')
       this.showInput();
@@ -146,5 +187,67 @@ export default class GameController {
     const badCommand = this.textManager.getBadCommand(command);
     this.renderManager.render(badCommand);
     this.showInput();
+  }
+
+  generateJobs() {
+    let jobGenerator = new JobGenerator();
+    let jobs = []
+
+    for(let i = 0;i < 10; i++) {
+      let job = jobGenerator.getJob();
+      job.index = jobs.length;
+      jobs.push(job);
+    }
+
+    this.user.setJobs(jobs);
+  }
+
+  getJobs() {
+    let jobs = this.user.getJobs();
+    let txt  = 'Jobs:<br>';
+      txt  += '======================================================================<br>';
+    for(let i=0;i<jobs.length;i++) {
+      let job = jobs[i];
+      txt += 'Position:'+ job.title + '<br>';
+      txt += 'Payment: $'+ job.price + '<br>';
+      txt += 'Skill: '+ job.skill + '<br>';
+      txt += 'ID: '+ job.index + '<br>';
+      txt += '----------------------------------------------------------------------</br>';
+    }
+    return txt;
+  }
+}
+
+class JobGenerator {
+  constructor() {
+
+  }
+
+  getJob() {
+    let random = utils.random(1, 3);
+    let job = {};
+    //@NOTE: SHould make randow positions and companies
+    switch (random) {
+      case 1:
+        job.title = 'Angular Developer for some Indian Startup';
+        job.skill = 'WebDevelopment';
+        job.file  = 'js';
+        break;
+      case 2:
+        job.title = 'C++ Developer for CryTek';
+        job.skill = 'Game Development';
+        job.file  = 'cpp';
+        break;
+      default:
+        job.title = 'Java Developer for Oracle';
+        job.skill = 'SoftwereDevelopment';
+        job.file  = 'java';
+        break;
+    }
+
+    job.price = utils.random(1, 1000);
+    job.progress = 0;
+
+    return job
   }
 }
