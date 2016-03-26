@@ -35,6 +35,10 @@ export default class RenderManager {
     this.$console.html(html);
   }
 
+  setInput(inputId, command) {
+    $(inputId).val(command);
+  }
+
   renderInput(inputMd) {
     let html = this.$console.html();
     html += inputMd;

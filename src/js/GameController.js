@@ -13,11 +13,56 @@ export default class GameController {
     this.typer          = new Typer(this.renderManager);
     this.user           = new UserStore(this.textManager);
 
+    this.history        = [' '];
+    this.historyIndex   = 0;
     this.generateJobs();
 
+    this.startHandleArrowKeys();
     console.log('GameController inited.');
 
     this.showMenu();
+  }
+
+  startHandleArrowKeys() {
+    this.handleArrowKeyHandler = this.handleArrowKey.bind(this);
+    document.addEventListener('keydown', this.handleArrowKeyHandler);
+  }
+
+  stopHandleArrowKeys() {
+    document.removeEventListener('keypress', this.handleArrowKeyHandler);
+    this.handleArrowKeyHandler = null;
+  }
+
+  handleArrowKey(e) {
+    if(e.keyCode == 38) {
+      this.takeFromHistory();
+    }
+    else if(e.keyCode == 40) {
+      this.takebackFromHistory();
+    }
+    console.log('hist',this.history);
+    console.log('histI',this.historyIndex);
+  }
+
+  takeFromHistory() {
+    if(this.historyIndex > this.history.length-1) return;
+
+    const inputId = this.textManager.getInputId();
+    let lastArgument = this.history[this.historyIndex];
+    this.historyIndex += 1;
+
+    this.renderManager.setInput(inputId, lastArgument);
+  }
+
+  takebackFromHistory() {
+      this.historyIndex -= 2;
+      if(this.historyIndex < 0) { this.historyIndex = 0; return }
+      this.takeFromHistory();
+  }
+
+  addToHistory(command) {
+    this.history.unshift(command);
+    this.historyIndex = 0;
   }
 
   showMenu() {
@@ -90,6 +135,7 @@ export default class GameController {
   }
 
   handleCommand(command) {
+    this.addToHistory(command);
     command = command.toLowerCase();
     command = command.trim();
     command = command.split(' ');
