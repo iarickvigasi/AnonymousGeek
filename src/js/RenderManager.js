@@ -37,6 +37,11 @@ export default class RenderManager {
 
   setInput(inputId, command) {
     $(inputId).val(command);
+    //Need to set the cursor to the end
+    // $(inputId).focus();
+    // var tmpStr = $(inputId).val();
+    // $(inputId).val('');
+    // $(inputId).val(tmpStr);
   }
 
   renderInput(inputMd) {

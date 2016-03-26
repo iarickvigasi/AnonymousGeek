@@ -36,9 +36,11 @@ export default class GameController {
   handleArrowKey(e) {
     if(e.keyCode == 38) {
       this.takeFromHistory();
+      e.preventDefault();
     }
     else if(e.keyCode == 40) {
       this.takebackFromHistory();
+      e.preventDefault();
     }
     console.log('hist',this.history);
     console.log('histI',this.historyIndex);
