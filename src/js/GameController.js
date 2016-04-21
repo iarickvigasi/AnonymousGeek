@@ -3,6 +3,7 @@ import RenderManager from './RenderManager';
 import UserStore from './UserStore';
 import Typer from './Typer';
 import utils from './utils';
+import ProjectFactory from './project';
 
 export default class GameController {
   constructor() {
@@ -12,7 +13,6 @@ export default class GameController {
     this.renderManager  = new RenderManager();
     this.typer          = new Typer(this.renderManager);
     this.user           = new UserStore(this.textManager);
-
     this.history        = [' '];
     this.historyIndex   = 0;
     this.generateJobs();
@@ -42,8 +42,6 @@ export default class GameController {
       this.takebackFromHistory();
       e.preventDefault();
     }
-    console.log('hist',this.history);
-    console.log('histI',this.historyIndex);
   }
 
   takeFromHistory() {
@@ -229,17 +227,31 @@ export default class GameController {
     }
   }
 
-  tryEvent() {
-    let gameData = this.user.getGameData();
-    //@TODO: Add checking by skill
-    if(gameData.progress >= 10000) {
-      this.typer.breakTyping();
-      this.renderManager.render('You don\'n know what to write next! Such a low skill..<br>')
-      this.showInput();
+  lowSkill() {
+      this.renderManager.render('Such a low skill...');
+  }
+
+  checkDifficulty(project) {
+    let userSkills = this.user.user.skills;
+    let limit = project.length/project.difficulty*userSkills[project.skills[0]];
+    if(project.progress >= limit) {
       return false;
     }
-
     return true;
+    console.log('limit', limit);
+  }
+
+  tryEvent(project) {
+    let synteticEvent = {
+      canContinue: true
+    };
+    let tooDificult = this.checkDifficulty(project);
+    if(!tooDificult) {
+      console.log('THIS IS');
+      synteticEvent.canContinue = false;
+      synteticEvent.callback = this.lowSkill.bind(this);
+    }
+    return synteticEvent;
   }
 
   unknownCommand(command) {
@@ -267,12 +279,12 @@ export default class GameController {
   }
 
   generateJobs() {
-    let jobGenerator = new JobGenerator(this.textManager);
+    let projectFactory = new ProjectFactory(this);
     let jobs = []
 
     for(let i = 0;i < 10; i++) {
-      let job = jobGenerator.getJob();
-      job.index = jobs.length;
+      let job = projectFactory.getRandomProject();
+      job.index = i;
       jobs.push(job);
     }
 
@@ -293,42 +305,8 @@ export default class GameController {
     }
     return txt;
   }
-}
 
-class JobGenerator {
-  constructor(textManager) {
-    this.textManager = textManager;
-  }
-
-  getJob() {
-    let random = utils.random(1, 3);
-    let job = {};
-    //@NOTE: SHould make randow positions and companies
-    switch (random) {
-      case 1:
-        job.title = 'Angular Developer for some Indian Startup';
-        job.field = 'WebDevelopment';
-        job.skill = 'web';
-        job.file  = 'js';
-        break;
-      case 2:
-        job.title = 'C++ Developer for CryTek';
-        job.field = 'Game Development';
-        job.skill = 'game';
-        job.file  = 'cpp';
-        break;
-      default:
-        job.title = 'Java Developer for Google';
-        job.field = 'Mobile Softwere Development ';
-        job.skill = 'mobile';
-        job.file  = 'java';
-        break;
-    }
-
-    job.price = utils.random(1, 1000);
-    job.progress = 0;
-    let length = this.textManager.getCodeLentgh(job.file);
-    job.length = length;
-    return job
+  getTextManager() {
+    return this.textManager;
   }
 }

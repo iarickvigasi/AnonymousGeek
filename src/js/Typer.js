@@ -1,6 +1,8 @@
 import jquery from 'jquery';
 import CONST from './consts'
 import gameController from './app'
+import utils from './utils';
+
 var $ = jquery;
 const { KEY_CODES } = CONST
 
@@ -11,7 +13,7 @@ export default class Typer {
     this.render = renderManager;
 
     this.project = null;
-    this.speed = 2;
+    this.speed = 10;
     this.isTyping = false;
 
     this.typeCodeHandler = null;
@@ -30,6 +32,16 @@ export default class Typer {
     var rtt= new RegExp("\\t", "g");
 
     return text.replace(rtn,"<br/>").replace(rtt,"&nbsp;&nbsp;&nbsp;&nbsp;").replace(rts,"&nbsp;");
+  }
+
+  calculatePercentage() {
+    let {length, progress} = this.project;
+    let percentages = utils.getProgresPercentage(this.project);
+    $('#progress').text("Progress: "+percentages+"%");
+  }
+
+  clearPercentages() {
+    $('#progress').text("");
   }
 
   breakTyping() {
@@ -55,8 +67,13 @@ export default class Typer {
   }
 
   typeCode(e){
-    let canContinue = gameController.tryEvent();
-    if(!this.isTyping || !canContinue) return false;
+    this.calculatePercentage()
+    let synteticEvent = gameController.tryEvent(this.project);
+    if(!this.isTyping) return false;
+    if(!synteticEvent.canContinue) {
+      this.breakTyping();
+      synteticEvent.callback();
+    }
     const code = this.getCode()
     this.render.html(code);
     window.scrollBy(0, window.outerHeight);
@@ -116,7 +133,7 @@ export default class Typer {
     $(document).off('keypress', typeCodeHandler)
     $(document).off('keydown', shortCutsHandler)
     clearInterval(cursorInterval);
-
+    this.clearPercentages()
     gameController.clear(showInput);
     gameController.saveProject(this.project)
   }

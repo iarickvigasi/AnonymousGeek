@@ -50,8 +50,8 @@ export default class UserStore {
   updateSkill(project) {
     let random = utils.random(1,100);
     if(random >= 99) {
-      let skill = project.skill;
-      this.user.skills[skill] += 0.5;
+      let skill = project.skills[0];
+      this.user.skills[skill] += 1;
     }
   }
 
@@ -91,10 +91,17 @@ export default class UserStore {
     //@TODO: Random texts based on skills
     let jobs = this.user.jobs;
     let txt = "game : Your personal shit... oh sorry game<br>";
+    txt+='----------------------------------------------------------------<br>'
     console.log("Getting projects:", jobs);
     jobs.forEach( (job, index) => {
-      let status = job.complete ? "complete" : 'in progress';
-      txt += `job#${index} : ${job.title} payment: $${job.price}<br> status: ${status}<br>`;
+      let status = job.complete ? "complete" : utils.getProgresPercentage(job)+"%";
+      txt += `job#${index} : ${job.title}<br>
+      payment: $${job.price}<br>
+      status: ${status}<br>
+      skills: ${job.skills.join(',')}<br>
+      difficulty: ${job.difficulty}<br>
+      DEADLINE: ${job.deadline}<br>`;
+      txt+='----------------------------------------------------------------<br>'
     })
     return txt;
   }
